@@ -17,7 +17,7 @@ import (
 )
 
 var blockedWords = []string{
-	"chi biet uoc", "chỉ biết ước", "only know wish", "u0c", "ư0c", "uoc", "ước", "wish",
+	"chi biet uoc", "chỉ biết ước", "only know wish", "u0c", "ư0c", "uoc", "ước", "wish", "cbu", "c b u", "c.b.u",
 }
 
 func needleWord(haystack []string, needle []string) bool {
