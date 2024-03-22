@@ -20,6 +20,33 @@ var blockedWords = []string{
 	"chi biet uoc", "chỉ biết ước", "only know wish", "u0c", "ư0c", "uoc", "ước", "wish",
 }
 
+func needleWord(haystack []string, needle []string) bool {
+	for i := 0; i < len(haystack); i++ {
+		match := true
+		for n := 0; n < len(needle); n++ {
+			m := i + n
+			if len(haystack) <= m {
+				match = false
+				break
+			}
+
+			l1 := haystack[m]
+			l2 := needle[n]
+
+			if !strings.EqualFold(l1, l2) {
+				match = false
+				break
+			}
+		}
+
+		if match {
+			return true
+		}
+	}
+
+	return false
+}
+
 func main() {
 	err := godotenv.Load()
 	if err != nil {
@@ -76,49 +103,48 @@ func main() {
 			return
 		}
 
-		for _, piece := range words {
-			for _, blocked := range blockedWords {
-				if strings.Contains(piece, blocked) {
-					authorId, _ := strconv.ParseUint(event.Message.Author.ID, 10, 64)
-					msgId, _ := strconv.ParseUint(event.Message.ID, 10, 64)
+		for _, blocked := range blockedWords {
+			pieces := strings.Fields(blocked)
+			if needleWord(words, pieces) {
+				authorId, _ := strconv.ParseUint(event.Message.Author.ID, 10, 64)
+				msgId, _ := strconv.ParseUint(event.Message.ID, 10, 64)
 
-					log.Printf("Detected wish by message %v from %v : %s", msgId, authorId, content)
+				log.Printf("Detected wish by message %v from %v : %s", msgId, authorId, content)
 
-					// match
-					err := gormDb.Transaction(func(tx *gorm.DB) error {
-						var user User
-						if err := tx.Where(&User{DiscordId: authorId}).FirstOrCreate(&user).Error; err != nil {
-							return err
-						}
-
-						entry := Log{
-							ID:        0,
-							UserId:    user.ID,
-							MessageId: msgId,
-							Count:     -1,
-						}
-
-						if err := tx.Create(&entry).Error; err != nil {
-							log.Printf("Recorded message %v to database", msgId)
-						}
-
-						return nil
-					})
-
-					if err != nil {
-						log.Printf("Failed to record : %s", err)
+				// match
+				err := gormDb.Transaction(func(tx *gorm.DB) error {
+					var user User
+					if err := tx.Where(&User{DiscordId: authorId}).FirstOrCreate(&user).Error; err != nil {
+						return err
 					}
 
-					ref := discordgo.MessageReference{MessageID: event.Message.ID}
-					msg := discordgo.MessageSend{
-						Content:   "Số lần được ước của quý khách vừa giảm đi 1.",
-						Reference: &ref,
+					entry := Log{
+						ID:        0,
+						UserId:    user.ID,
+						MessageId: msgId,
+						Count:     -1,
 					}
 
-					session.ChannelMessageSendComplex(event.ChannelID, &msg)
+					if err := tx.Create(&entry).Error; err != nil {
+						log.Printf("Recorded message %v to database", msgId)
+					}
 
-					return
+					return nil
+				})
+
+				if err != nil {
+					log.Printf("Failed to record : %s", err)
 				}
+
+				ref := discordgo.MessageReference{MessageID: event.Message.ID}
+				msg := discordgo.MessageSend{
+					Content:   "Số lần được ước của quý khách vừa giảm đi 1.",
+					Reference: &ref,
+				}
+
+				session.ChannelMessageSendComplex(event.ChannelID, &msg)
+
+				return
 			}
 		}
 	})
