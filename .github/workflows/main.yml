@@ -1,4 +1,4 @@
-name: Push Docker image for maimai frontend to GitHub Container Registry
+name: Push Docker image to GitHub Container Registry
 
 on:
   push:
